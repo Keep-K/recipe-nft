@@ -1,9 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
-import os
-
-load_dotenv()
+from app.config import settings
+from app.routers import recipes, users, media
 
 app = FastAPI(
     title="Recipe NFT API",
@@ -20,6 +18,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 라우터 등록
+app.include_router(recipes.router, prefix="/api")
+app.include_router(users.router, prefix="/api")
+app.include_router(media.router, prefix="/api")
+
 @app.get("/")
 async def root():
     return {"message": "Recipe NFT API", "status": "running"}
@@ -32,8 +35,8 @@ if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
         "main:app",
-        host=os.getenv("HOST", "0.0.0.0"),
-        port=int(os.getenv("PORT", 8000)),
-        reload=os.getenv("DEBUG", "True") == "True"
+        host=settings.HOST,
+        port=settings.PORT,
+        reload=settings.DEBUG
     )
 
