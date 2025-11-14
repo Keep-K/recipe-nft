@@ -21,17 +21,46 @@ backend/
 │       └── web3.py        # Web3 연동
 ├── main.py                # FastAPI 앱 진입점
 ├── init_db.py            # 데이터베이스 초기화
+├── setup.sh              # 환경 설정 스크립트
 ├── requirements.txt      # Python 의존성
 └── .env.example          # 환경 변수 예제
 ```
 
 ## 설치
 
+### 방법 1: 자동 설정 스크립트 사용 (권장)
+
 ```bash
 cd backend
-python -m venv venv
+./setup.sh
+```
+
+### 방법 2: 수동 설치
+
+```bash
+cd backend
+
+# python3-venv가 설치되어 있지 않다면 먼저 설치
+sudo apt install python3-venv
+
+# 가상 환경 생성
+python3 -m venv venv
+
+# 가상 환경 활성화
 source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# pip 업그레이드
+pip install --upgrade pip
+
+# 의존성 설치
 pip install -r requirements.txt
+```
+
+### 방법 3: 시스템 Python에 직접 설치 (가상 환경 없이)
+
+```bash
+cd backend
+pip3 install --user -r requirements.txt
 ```
 
 ## 환경 변수 설정
@@ -67,7 +96,13 @@ GRANT ALL PRIVILEGES ON DATABASE recipe_nft_db TO your_user;
 
 ### 데이터베이스 테이블 생성
 
+가상 환경을 활성화한 후:
+
 ```bash
+# 가상 환경 활성화 (아직 안 했다면)
+source venv/bin/activate
+
+# 데이터베이스 초기화
 python init_db.py
 ```
 
@@ -87,6 +122,10 @@ alembic upgrade head
 ## 실행
 
 ```bash
+# 가상 환경 활성화 (아직 안 했다면)
+source venv/bin/activate
+
+# 서버 실행
 python main.py
 # 또는
 uvicorn main:app --reload
@@ -102,11 +141,11 @@ uvicorn main:app --reload
 ## 주요 API 엔드포인트
 
 ### 레시피 (Recipes)
-- `POST /api/recipes` - 레시피 생성
+- `POST /api/recipes?wallet_address=0x...` - 레시피 생성
 - `GET /api/recipes` - 레시피 목록 조회
 - `GET /api/recipes/{id}` - 레시피 상세 조회
-- `PUT /api/recipes/{id}` - 레시피 수정
-- `DELETE /api/recipes/{id}` - 레시피 삭제
+- `PUT /api/recipes/{id}?wallet_address=0x...` - 레시피 수정
+- `DELETE /api/recipes/{id}?wallet_address=0x...` - 레시피 삭제
 - `GET /api/recipes/{id}/media` - 레시피 미디어 조회
 
 ### 사용자 (Users)
@@ -115,14 +154,38 @@ uvicorn main:app --reload
 - `GET /api/users/{wallet_address}/recipes` - 사용자 레시피 목록
 
 ### 미디어 (Media)
-- `POST /api/media/upload/{recipe_id}` - 미디어 업로드
+- `POST /api/media/upload/{recipe_id}?media_type=photo` - 미디어 업로드
 - `GET /api/media/{media_id}` - 미디어 조회
 - `DELETE /api/media/{media_id}` - 미디어 삭제
 
+## 문제 해결
+
+### ModuleNotFoundError 발생 시
+
+1. 가상 환경이 활성화되었는지 확인:
+   ```bash
+   which python  # venv/bin/python을 가리켜야 함
+   ```
+
+2. 가상 환경 활성화:
+   ```bash
+   source venv/bin/activate
+   ```
+
+3. 패키지 재설치:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+### python3-venv가 없는 경우
+
+```bash
+sudo apt install python3-venv
+```
+
 ## 개발 참고사항
 
-- 현재 인증은 임시로 `wallet_address`를 파라미터로 받습니다
+- 현재 인증은 임시로 `wallet_address`를 쿼리 파라미터로 받습니다
 - 나중에 JWT 기반 인증으로 변경 예정
 - IPFS와 Web3 서비스는 기본 구조만 구현되어 있습니다
 - 실제 NFT 민팅 기능은 스마트 컨트랙트 연동 후 구현 예정
-
