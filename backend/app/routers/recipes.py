@@ -13,12 +13,6 @@ async def create_recipe(
     db: Session = Depends(get_db)
 ):
     """레시피 생성"""
-    if not wallet_address:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="wallet_address is required"
-        )
-    
     # 사용자 조회 또는 생성
     user = db.query(models.User).filter(models.User.wallet_address == wallet_address).first()
     if not user:
@@ -77,12 +71,6 @@ async def update_recipe(
     db: Session = Depends(get_db)
 ):
     """레시피 수정"""
-    if not wallet_address:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="wallet_address is required"
-        )
-    
     db_recipe = db.query(models.Recipe).filter(models.Recipe.id == recipe_id).first()
     if not db_recipe:
         raise HTTPException(
@@ -122,12 +110,6 @@ async def delete_recipe(
     db: Session = Depends(get_db)
 ):
     """레시피 삭제"""
-    if not wallet_address:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="wallet_address is required"
-        )
-    
     db_recipe = db.query(models.Recipe).filter(models.Recipe.id == recipe_id).first()
     if not db_recipe:
         raise HTTPException(
