@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.database import get_db
@@ -9,7 +9,7 @@ router = APIRouter(prefix="/recipes", tags=["recipes"])
 @router.post("/", response_model=schemas.RecipeResponse, status_code=status.HTTP_201_CREATED)
 async def create_recipe(
     recipe: schemas.RecipeCreate,
-    wallet_address: str,  # 임시로 wallet_address를 파라미터로 받음 (나중에 인증으로 변경)
+    wallet_address: str = Query(..., description="지갑 주소 (임시 인증)"),
     db: Session = Depends(get_db)
 ):
     """레시피 생성"""
@@ -73,7 +73,7 @@ async def get_recipe(recipe_id: int, db: Session = Depends(get_db)):
 async def update_recipe(
     recipe_id: int,
     recipe_update: schemas.RecipeUpdate,
-    wallet_address: str = None,  # 임시로 wallet_address를 쿼리 파라미터로 받음
+    wallet_address: str = Query(..., description="지갑 주소 (임시 인증)"),
     db: Session = Depends(get_db)
 ):
     """레시피 수정"""
@@ -118,7 +118,7 @@ async def update_recipe(
 @router.delete("/{recipe_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_recipe(
     recipe_id: int,
-    wallet_address: str = None,  # 임시로 wallet_address를 쿼리 파라미터로 받음
+    wallet_address: str = Query(..., description="지갑 주소 (임시 인증)"),
     db: Session = Depends(get_db)
 ):
     """레시피 삭제"""
