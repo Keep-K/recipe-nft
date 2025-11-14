@@ -8,8 +8,14 @@
 recipe-nft/
 ├── backend/          # FastAPI 백엔드
 ├── frontend/         # Vite + React 프론트엔드
-└── PROJECT_PLAN.md   # 상세 프로젝트 계획서
+└── docs/             # 프로젝트 문서
+    ├── planning/     # 프로젝트 계획서
+    ├── guides/       # 개발 가이드
+    ├── api/          # API 문서
+    └── deployment/   # 배포 문서
 ```
+
+자세한 문서는 [docs/](./docs/) 폴더를 참고하세요.
 
 ## 기술 스택
 
