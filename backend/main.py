@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.routers import recipes, users, media
+from app.routers import recipes, users, media, nft
 
 app = FastAPI(
     title="Recipe NFT API",
@@ -22,6 +22,7 @@ app.add_middleware(
 app.include_router(recipes.router, prefix="/api")
 app.include_router(users.router, prefix="/api")
 app.include_router(media.router, prefix="/api")
+app.include_router(nft.router, prefix="/api")
 
 @app.get("/")
 async def root():

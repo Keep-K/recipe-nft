@@ -21,7 +21,9 @@ backend/
 │       └── web3.py        # Web3 연동
 ├── main.py                # FastAPI 앱 진입점
 ├── init_db.py            # 데이터베이스 초기화
-├── setup.sh              # 환경 설정 스크립트
+├── scripts/
+│   ├── setup.sh          # 환경 설정 스크립트
+│   └── setup_db.sh       # DB 초기 설정 스크립트
 ├── requirements.txt      # Python 의존성
 └── .env.example          # 환경 변수 예제
 ```
@@ -32,7 +34,7 @@ backend/
 
 ```bash
 cd backend
-./setup.sh
+./scripts/setup.sh
 ```
 
 ### 방법 2: 수동 설치
@@ -79,6 +81,11 @@ cp .env.example .env
 - `WEB3_PROVIDER_URL`: 블록체인 프로바이더 URL
 
 ## 데이터베이스 설정
+
+# 자동 DB 초기화 스크립트 사용
+./scripts/setup_db.sh
+
+# 또는 수동으로 실행하려면 아래 절차 참고
 
 ### PostgreSQL 설치 및 데이터베이스 생성
 
