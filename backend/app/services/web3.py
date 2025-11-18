@@ -422,6 +422,29 @@ class Web3Service:
             traceback.print_exc()
             raise  # 예외를 다시 발생시켜서 상위에서 처리하도록
     
+    def get_contract_address_from_transaction(self, tx_hash: str) -> Optional[str]:
+        """
+        트랜잭션 해시에서 컨트랙트 주소 추출
+        
+        Args:
+            tx_hash: 트랜잭션 해시
+            
+        Returns:
+            컨트랙트 주소 또는 None
+        """
+        if not self.is_connected():
+            return None
+        
+        try:
+            tx = self.w3.eth.get_transaction(tx_hash)
+            # 트랜잭션의 'to' 필드가 컨트랙트 주소
+            if tx['to']:
+                return Web3.to_checksum_address(tx['to'])
+            return None
+        except Exception as e:
+            print(f"Get contract address from transaction error: {e}")
+            return None
+    
     def get_token_id_from_transaction(self, contract_address: str, tx_hash: str) -> Optional[int]:
         """
         트랜잭션 해시에서 토큰 ID 추출

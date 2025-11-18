@@ -307,19 +307,57 @@ async def debug_transaction(
 ):
     """
     트랜잭션 디버깅 정보 조회
-    """
-    if not contract_address:
-        contract_address = settings.NFT_CONTRACT_ADDRESS
     
+    트랜잭션에서 컨트랙트 주소를 자동으로 추출합니다.
+    """
     debug_info = {
         "tx_hash": tx_hash,
-        "contract_address": contract_address,
+        "contract_address_from_env": settings.NFT_CONTRACT_ADDRESS,
+        "contract_address_from_tx": None,
+        "contract_address_used": contract_address,
         "web3_connected": web3_service.is_connected(),
         "web3_provider": settings.WEB3_PROVIDER_URL,
         "token_id_from_web3": None,
         "token_id_from_etherscan": None,
+        "transaction_info": None,
         "recipes_in_db": []
     }
+    
+    # 트랜잭션에서 컨트랙트 주소 추출
+    try:
+        contract_address_from_tx = web3_service.get_contract_address_from_transaction(tx_hash)
+        debug_info["contract_address_from_tx"] = contract_address_from_tx
+        
+        # 트랜잭션 정보 가져오기
+        if web3_service.is_connected():
+            try:
+                from app.config import settings
+                from web3 import Web3
+                w3 = Web3(Web3.HTTPProvider(settings.WEB3_PROVIDER_URL))
+                tx = w3.eth.get_transaction(tx_hash)
+                receipt = w3.eth.get_transaction_receipt(tx_hash)
+                debug_info["transaction_info"] = {
+                    "from": tx['from'],
+                    "to": tx['to'],
+                    "status": receipt.status,
+                    "logs_count": len(receipt.logs),
+                    "gas_used": receipt.gasUsed,
+                    "block_number": receipt.blockNumber
+                }
+            except Exception as e:
+                debug_info["transaction_info"] = {"error": f"Failed to get transaction info: {str(e)}"}
+    except Exception as e:
+        debug_info["transaction_info"] = {"error": str(e)}
+    
+    # 사용할 컨트랙트 주소 결정
+    if not contract_address:
+        # 트랜잭션에서 추출한 주소 우선 사용
+        if debug_info["contract_address_from_tx"]:
+            contract_address = debug_info["contract_address_from_tx"]
+        else:
+            contract_address = settings.NFT_CONTRACT_ADDRESS
+    
+    debug_info["contract_address_used"] = contract_address
     
     # Web3로 시도
     if contract_address:
@@ -341,6 +379,7 @@ async def debug_transaction(
             "recipe_name": r.recipe_name,
             "token_id": r.token_id,
             "contract_address": r.contract_address,
+            "transaction_hash": r.transaction_hash,
             "is_minted": r.is_minted
         }
         for r in minted_recipes
