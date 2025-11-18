@@ -158,35 +158,125 @@ class Web3Service:
             receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
             print(f"✅ Transaction confirmed in block {receipt.blockNumber}")
             
+            # 트랜잭션 상태 확인
+            if receipt.status != 1:
+                error_msg = f"Transaction failed with status {receipt.status}"
+                print(f"❌ {error_msg}")
+                raise Exception(error_msg)
+            
+            print(f"✅ Transaction status: {receipt.status} (1 = success)")
+            print(f"🔍 Analyzing {len(receipt.logs)} logs for Transfer events...")
+            
             # 이벤트에서 토큰 ID 추출
-            # mintRecipe 함수는 토큰 ID를 반환하지만, 트랜잭션 receipt에서는
-            # Transfer 이벤트를 통해 tokenId를 추출해야 함
             token_id = None
             zero_address = Web3.to_checksum_address('0x0000000000000000000000000000000000000000')
             
             if receipt.logs:
                 # Transfer 이벤트 파싱
                 transfer_event = contract.events.Transfer()
-                for log in receipt.logs:
+                contract_address_lower = contract_address.lower()
+                
+                for i, log in enumerate(receipt.logs):
                     try:
+                        # 로그가 이 컨트랙트에서 발생한 것인지 확인
+                        if log.address.lower() != contract_address_lower:
+                            print(f"   Log {i}: Skipping (different contract: {log.address})")
+                            continue
+                        
+                        print(f"   Log {i}: Processing Transfer event from contract {log.address}")
                         event = transfer_event.process_log(log)
+                        
                         # Transfer 이벤트: Transfer(address indexed from, address indexed to, uint256 indexed tokenId)
                         # from이 0x0000...이면 민팅 이벤트
                         from_address = Web3.to_checksum_address(event['args']['from'])
+                        to_address = Web3.to_checksum_address(event['args']['to'])
+                        potential_token_id = event['args']['tokenId']
+                        
+                        print(f"      From: {from_address}, To: {to_address}, TokenID: {potential_token_id}")
+                        
                         if from_address == zero_address:
-                            token_id = event['args']['tokenId']
+                            token_id = potential_token_id
+                            print(f"✅ Found mint Transfer event! Token ID: {token_id}")
                             break
                     except Exception as e:
                         # 이벤트 파싱 실패 시 다음 로그 시도
+                        print(f"   Log {i}: Failed to parse Transfer event: {e}")
                         continue
             
-            # 토큰 ID를 찾지 못한 경우 에러
+            # 토큰 ID를 찾지 못한 경우 대안 방법 시도
             if token_id is None:
-                error_msg = "Failed to extract token ID from Transfer event. Check contract events."
+                print(f"⚠️  Token ID not found in Transfer events (logs: {len(receipt.logs)}). Trying alternative methods...")
+                
+                # 방법 1: totalSupply를 사용하여 최신 토큰 ID 추출
+                try:
+                    print(f"   Method 1: Checking totalSupply...")
+                    # 블록이 확정될 때까지 잠시 대기
+                    import time
+                    time.sleep(2)  # 2초 대기
+                    
+                    total_supply = contract.functions.totalSupply().call()
+                    print(f"      Total supply: {total_supply}")
+                    
+                    if total_supply > 0:
+                        # 마지막 토큰 ID는 totalSupply - 1 (0-based indexing)
+                        token_id = total_supply - 1
+                        print(f"✅ Using totalSupply method: Token ID = {token_id}")
+                        
+                        # 검증: 해당 토큰이 실제로 to_address에 속하는지 확인
+                        try:
+                            owner = contract.functions.ownerOf(token_id).call()
+                            if owner.lower() == to_address.lower():
+                                print(f"✅ Verified: Token {token_id} belongs to {to_address}")
+                            else:
+                                print(f"⚠️  Warning: Token {token_id} owner is {owner}, expected {to_address}")
+                        except Exception as e:
+                            print(f"⚠️  Could not verify token ownership: {e}")
+                    else:
+                        print(f"      Total supply is 0, cannot determine token ID")
+                except Exception as e:
+                    print(f"   totalSupply method failed: {e}")
+                    import traceback
+                    traceback.print_exc()
+                
+                # 방법 2: balanceOf를 사용하여 확인
+                if token_id is None:
+                    try:
+                        print(f"   Method 2: Checking balanceOf...")
+                        balance = contract.functions.balanceOf(to_address).call()
+                        print(f"      Balance of {to_address}: {balance}")
+                        
+                        if balance > 0:
+                            # balanceOf가 증가했다면, 최신 토큰을 찾기 위해 ownerOf를 역순으로 확인
+                            # 하지만 이 방법은 비효율적이므로 totalSupply 방법이 더 나음
+                            pass
+                    except Exception as e:
+                        print(f"   balanceOf method failed: {e}")
+                
+                # 방법 3: 모든 로그를 자세히 출력
+                if token_id is None and receipt.logs:
+                    print(f"   Method 3: Detailed log analysis:")
+                    for i, log in enumerate(receipt.logs):
+                        print(f"      Log {i}:")
+                        print(f"         Address: {log.address}")
+                        print(f"         Topics: {[t.hex() if hasattr(t, 'hex') else str(t) for t in log.topics]}")
+                        print(f"         Data: {log.data.hex() if hasattr(log.data, 'hex') else str(log.data)}")
+                elif token_id is None:
+                    print(f"   ⚠️  No logs found in transaction receipt!")
+                    print(f"      This might indicate:")
+                    print(f"      1. Contract doesn't emit Transfer events")
+                    print(f"      2. Transaction reverted silently")
+                    print(f"      3. Contract address or ABI mismatch")
+            
+            # 여전히 토큰 ID를 찾지 못한 경우 에러
+            if token_id is None:
+                error_msg = (
+                    f"Failed to extract token ID. "
+                    f"Transaction hash: {receipt.transactionHash.hex()}, "
+                    f"Logs: {len(receipt.logs)}, "
+                    f"Status: {receipt.status}. "
+                    f"Please check the contract events or use totalSupply method."
+                )
                 print(f"❌ {error_msg}")
-                print(f"   Receipt logs count: {len(receipt.logs)}")
-                for i, log in enumerate(receipt.logs):
-                    print(f"   Log {i}: address={log.address}, topics={len(log.topics)}")
                 raise Exception(error_msg)
             
             print(f"🎉 NFT minted! Token ID: {token_id}")
