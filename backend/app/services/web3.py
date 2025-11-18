@@ -413,53 +413,162 @@ class Web3Service:
             return None
         
         try:
-            print(f"Fetching transaction receipt for: {tx_hash}")
+            print(f"🔍 Fetching transaction receipt for: {tx_hash}")
             # 트랜잭션 영수증 가져오기
             receipt = self.w3.eth.get_transaction_receipt(tx_hash)
-            print(f"Transaction receipt received. Block: {receipt.blockNumber}, Logs: {len(receipt.logs)}")
+            print(f"✅ Transaction receipt received. Block: {receipt.blockNumber}, Status: {receipt.status}, Logs: {len(receipt.logs)}")
+            
+            # 트랜잭션 상태 확인
+            if receipt.status != 1:
+                print(f"❌ Transaction failed with status {receipt.status}")
+                return None
+            
+            # 트랜잭션 정보 가져오기
+            tx = self.w3.eth.get_transaction(tx_hash)
+            print(f"   Transaction from: {tx['from']}, to: {tx['to']}")
             
             # ABI 로드
             abi = self.load_contract_abi()
             if not abi:
-                print("Failed to load ABI")
+                print("❌ Failed to load ABI")
                 return None
             
             # 컨트랙트 인스턴스 생성
+            contract_address = Web3.to_checksum_address(contract_address)
             contract = self.get_contract(contract_address, abi)
             if not contract:
-                print(f"Failed to create contract instance for: {contract_address}")
+                print(f"❌ Failed to create contract instance for: {contract_address}")
                 return None
             
-            # Transfer 이벤트에서 토큰 ID 추출
+            # 방법 1: Transfer 이벤트에서 토큰 ID 추출
             zero_address = Web3.to_checksum_address('0x0000000000000000000000000000000000000000')
             transfer_event = contract.events.Transfer()
             
-            print(f"Checking {len(receipt.logs)} logs for Transfer events...")
+            print(f"🔍 Checking {len(receipt.logs)} logs for Transfer events...")
+            token_id = None
+            mint_to_address = None
+            
             for i, log in enumerate(receipt.logs):
                 try:
                     # 로그가 이 컨트랙트에서 발생한 것인지 확인
                     if log.address.lower() != contract_address.lower():
+                        print(f"   Log {i}: Skipping (different contract: {log.address})")
                         continue
                     
                     event = transfer_event.process_log(log)
                     from_address = Web3.to_checksum_address(event['args']['from'])
                     to_address = Web3.to_checksum_address(event['args']['to'])
-                    token_id = event['args']['tokenId']
+                    potential_token_id = event['args']['tokenId']
                     
-                    print(f"Log {i}: Transfer event found - from: {from_address}, to: {to_address}, tokenId: {token_id}")
+                    print(f"   Log {i}: Transfer event - from: {from_address}, to: {to_address}, tokenId: {potential_token_id}")
                     
                     if from_address == zero_address:
-                        print(f"Mint event found! Token ID: {token_id}")
-                        return token_id
+                        token_id = potential_token_id
+                        mint_to_address = to_address
+                        print(f"✅ Found mint Transfer event! Token ID: {token_id}, To: {mint_to_address}")
+                        break
                 except Exception as e:
-                    print(f"Error processing log {i}: {e}")
+                    print(f"   Log {i}: Failed to parse Transfer event: {e}")
                     continue
             
-            print("No mint Transfer event found (from == 0x0000...)")
-            return None
+            # 방법 2: Transfer 이벤트가 없을 때 balanceOf 사용
+            if token_id is None:
+                print(f"⚠️  No mint Transfer event found. Trying balanceOf method...")
+                
+                # 트랜잭션 입력 데이터에서 민팅 대상 주소 추출 시도
+                mint_to_address = None
+                try:
+                    # mintRecipe 함수 시그니처: 0x675f0173
+                    if tx.input.startswith('0x675f0173') and len(tx.input) >= 138:
+                        # mintRecipe(address to, string tokenURI)
+                        # 함수 시그니처(4 bytes) + to 주소(32 bytes, 패딩 포함)
+                        to_address_hex = tx.input[34:74]  # 0x prefix 제거 후 34-74 (20 bytes = 40 hex chars)
+                        mint_to_address = Web3.to_checksum_address('0x' + to_address_hex)
+                        print(f"   Extracted mint target from input data: {mint_to_address}")
+                except Exception as e:
+                    print(f"   Failed to extract mint target from input: {e}")
+                
+                # 입력 데이터에서 추출 실패 시 트랜잭션 정보 사용
+                if not mint_to_address:
+                    tx_to = tx['to']
+                    if tx_to and tx_to.lower() == contract_address.lower():
+                        # 컨트랙트에 직접 호출한 경우, 발신자가 민팅 대상일 가능성이 높음
+                        mint_to_address = Web3.to_checksum_address(tx['from'])
+                        print(f"   Transaction to contract. Assuming mint to: {mint_to_address}")
+                    else:
+                        # 'to' 주소가 민팅 대상일 수 있음
+                        mint_to_address = Web3.to_checksum_address(tx_to) if tx_to else None
+                        print(f"   Transaction to: {mint_to_address}")
+                
+                if mint_to_address:
+                    try:
+                        import time
+                        time.sleep(2)  # 블록 확정 대기
+                        
+                        # balanceOf로 소유한 토큰 찾기
+                        balance = contract.functions.balanceOf(mint_to_address).call()
+                        print(f"   Balance of {mint_to_address}: {balance}")
+                        
+                        if balance > 0:
+                            # 소유한 모든 토큰 찾기
+                            max_search = 1000
+                            found_tokens = []
+                            
+                            for check_id in range(max_search):
+                                try:
+                                    owner = contract.functions.ownerOf(check_id).call()
+                                    if owner.lower() == mint_to_address.lower():
+                                        found_tokens.append(check_id)
+                                        if len(found_tokens) >= balance:
+                                            break
+                                except Exception:
+                                    continue
+                            
+                            if found_tokens:
+                                # 가장 큰 토큰 ID가 최신일 가능성이 높음
+                                token_id = max(found_tokens)
+                                print(f"✅ Using balanceOf method: Token ID = {token_id}")
+                            else:
+                                print(f"   Could not find any tokens owned by {mint_to_address}")
+                        else:
+                            print(f"   Balance is 0, cannot determine token ID")
+                    except Exception as e:
+                        print(f"   balanceOf method failed: {e}")
+                        import traceback
+                        traceback.print_exc()
+            
+            # 방법 3: 트랜잭션 입력 데이터 디코딩 시도
+            if token_id is None:
+                print(f"⚠️  Trying to decode transaction input data...")
+                try:
+                    # mintRecipe 함수 시그니처: 0x675f0173
+                    # 함수 시그니처 + to (32 bytes) + tokenURI (32 bytes offset) + tokenURI length + tokenURI data
+                    if tx.input.startswith('0x675f0173'):
+                        print(f"   Transaction is mintRecipe call")
+                        # to 주소는 input[4:68]에 있음 (32 bytes, 패딩 포함)
+                        # 하지만 토큰 ID는 반환값이므로 입력에서 알 수 없음
+                        print(f"   Cannot extract token ID from input data (it's a return value)")
+                except Exception as e:
+                    print(f"   Input decoding failed: {e}")
+            
+            # 방법 4: 모든 로그 상세 출력
+            if token_id is None and receipt.logs:
+                print(f"⚠️  Detailed log analysis:")
+                for i, log in enumerate(receipt.logs):
+                    print(f"   Log {i}:")
+                    print(f"      Address: {log.address}")
+                    print(f"      Topics: {[t.hex() if hasattr(t, 'hex') else str(t) for t in log.topics]}")
+                    print(f"      Data: {log.data.hex() if hasattr(log.data, 'hex') else str(log.data)}")
+            
+            if token_id is None:
+                print(f"❌ Could not extract token ID from transaction")
+                print(f"   Transaction: https://sepolia.etherscan.io/tx/{tx_hash}")
+                return None
+            
+            return token_id
             
         except Exception as e:
-            print(f"Get token ID from transaction error: {e}")
+            print(f"❌ Get token ID from transaction error: {e}")
             import traceback
             traceback.print_exc()
             return None
