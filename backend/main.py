@@ -11,13 +11,23 @@ app = FastAPI(
 
 # CORS 설정
 import os
-allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
+# 환경 변수에서 ALLOWED_ORIGINS 읽기 (settings보다 우선)
+allowed_origins_str = os.getenv("ALLOWED_ORIGINS", settings.ALLOWED_ORIGINS)
+if allowed_origins_str:
+    # 공백 제거 및 빈 문자열 필터링
+    allowed_origins = [origin.strip() for origin in allowed_origins_str.split(",") if origin.strip()]
+else:
+    allowed_origins = ["http://localhost:5173", "http://localhost:3000"]
+
 if settings.DEBUG:
     # 개발 환경: 모든 origin 허용
     allowed_origins = ["*"]
     allow_credentials = False
 else:
     # 프로덕션: 특정 origin만 허용
+    if not allowed_origins:
+        # ALLOWED_ORIGINS가 비어있으면 기본값 사용
+        allowed_origins = ["http://localhost:5173", "http://localhost:3000"]
     allow_credentials = True
 
 app.add_middleware(

@@ -12,21 +12,23 @@ class IPFSService:
     
     def _connect(self):
         """IPFS 클라이언트 연결"""
+        if self.use_pinata:
+            # Pinata 사용 - 로컬 노드 연결 불필요
+            print("✅ Using Pinata for IPFS (no local node required)")
+            return
+        
+        # Pinata 키가 없을 때만 로컬 IPFS 노드 연결 시도
         try:
-            if self.use_pinata:
-                # Pinata 사용
-                print("Using Pinata for IPFS")
-            else:
-                # 로컬 IPFS 노드
-                self.client = ipfshttpclient.connect(
-                    f"/ip4/{settings.IPFS_HOST}/tcp/{settings.IPFS_PORT}/http"
-                )
-                print(f"Connected to local IPFS node at {settings.IPFS_HOST}:{settings.IPFS_PORT}")
+            self.client = ipfshttpclient.connect(
+                f"/ip4/{settings.IPFS_HOST}/tcp/{settings.IPFS_PORT}/http"
+            )
+            print(f"✅ Connected to local IPFS node at {settings.IPFS_HOST}:{settings.IPFS_PORT}")
         except Exception as e:
-            print(f"IPFS connection error: {e}")
+            print(f"⚠️ IPFS connection error (non-critical): {e}")
+            print("⚠️ IPFS features will be limited. Consider using Pinata for production.")
             self.client = None
     
-    def _upload_to_pinata(self, data: dict, is_json: bool = True) -> Optional[str]:
+    def _upload_to_pinata(self, data, is_json: bool = True, filename: str = None) -> Optional[str]:
         """Pinata에 파일/JSON 업로드"""
         try:
             url = "https://api.pinata.cloud/pinning/pinJSONToIPFS" if is_json else "https://api.pinata.cloud/pinning/pinFileToIPFS"
@@ -45,7 +47,7 @@ class IPFSService:
                 response = requests.post(url, json=payload, headers=headers, timeout=30)
             else:
                 # 파일 업로드의 경우 multipart/form-data 사용
-                files = {"file": data}
+                files = {"file": (filename or "file", data, "application/octet-stream")}
                 response = requests.post(url, files=files, headers=headers, timeout=30)
             
             if response.status_code == 200:
@@ -63,8 +65,11 @@ class IPFSService:
         if self.use_pinata:
             # Pinata 파일 업로드
             try:
+                import os
+                filename = os.path.basename(file_path)
                 with open(file_path, 'rb') as f:
-                    return self._upload_to_pinata(f, is_json=False)
+                    file_data = f.read()
+                    return self._upload_to_pinata(file_data, is_json=False, filename=filename)
             except Exception as e:
                 print(f"Pinata file upload error: {e}")
                 return None
