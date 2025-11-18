@@ -44,13 +44,19 @@ async def get_recipes(
     db: Session = Depends(get_db)
 ):
     """레시피 목록 조회"""
-    query = db.query(models.Recipe)
-    
-    if is_minted is not None:
-        query = query.filter(models.Recipe.is_minted == is_minted)
-    
-    recipes = query.offset(skip).limit(limit).all()
-    return recipes
+    try:
+        query = db.query(models.Recipe)
+        
+        if is_minted is not None:
+            query = query.filter(models.Recipe.is_minted == is_minted)
+        
+        recipes = query.offset(skip).limit(limit).all()
+        return recipes
+    except Exception as e:
+        import traceback
+        print(f"❌ get_recipes error: {e}")
+        traceback.print_exc()
+        raise
 
 @router.get("/{recipe_id}", response_model=schemas.RecipeResponse)
 async def get_recipe(recipe_id: int, db: Session = Depends(get_db)):

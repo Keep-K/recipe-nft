@@ -30,6 +30,7 @@ class Recipe(Base):
     machine_instructions = Column(JSON, nullable=True)  # 기계 작동 과정
     ipfs_hash = Column(String(255), nullable=True, index=True)  # 메타데이터 IPFS 해시
     contract_address = Column(String(42), nullable=True)  # 스마트 컨트랙트 주소
+    transaction_hash = Column(String(66), nullable=True, index=True)  # 민팅 트랜잭션 해시
     is_minted = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

@@ -44,6 +44,7 @@ class RecipeResponse(RecipeBase):
     token_id: Optional[int] = None
     ipfs_hash: Optional[str] = None
     contract_address: Optional[str] = None
+    transaction_hash: Optional[str] = None
     is_minted: bool
     created_at: datetime
     updated_at: Optional[datetime] = None

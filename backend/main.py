@@ -10,12 +10,23 @@ app = FastAPI(
 )
 
 # CORS 설정
+import os
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
+if settings.DEBUG:
+    # 개발 환경: 모든 origin 허용
+    allowed_origins = ["*"]
+    allow_credentials = False
+else:
+    # 프로덕션: 특정 origin만 허용
+    allow_credentials = True
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],  # Vite 기본 포트
-    allow_credentials=True,
+    allow_origins=allowed_origins,
+    allow_credentials=allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # 라우터 등록

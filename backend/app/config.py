@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     PORT: int = 8000
     DEBUG: bool = True
     
+    # CORS
+    ALLOWED_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
+    
     # File Upload
     UPLOAD_DIR: str = "uploads"
     MAX_UPLOAD_SIZE: int = 50 * 1024 * 1024  # 50MB
