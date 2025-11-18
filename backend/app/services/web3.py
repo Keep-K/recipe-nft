@@ -106,6 +106,20 @@ class Web3Service:
             
             print(f"✅ Contract instance created")
             
+            # 컨트랙트 코드 확인 (컨트랙트가 실제로 배포되었는지)
+            try:
+                code = self.w3.eth.get_code(contract_address)
+                if code == b'' or code == '0x':
+                    error_msg = f"No contract code found at address {contract_address}. This address is NOT a contract!"
+                    print(f"❌ {error_msg}")
+                    raise Exception(error_msg)
+                else:
+                    print(f"✅ Contract code verified (length: {len(code)} bytes)")
+            except Exception as e:
+                if "NOT a contract" in str(e):
+                    raise
+                print(f"⚠️  Warning: Could not verify contract code: {e}")
+            
             # 계정 생성
             account = self.w3.eth.account.from_key(settings.PRIVATE_KEY)
             print(f"✅ Account loaded: {account.address}")
@@ -373,15 +387,26 @@ class Web3Service:
             
             # 여전히 토큰 ID를 찾지 못한 경우 에러
             if token_id is None:
+                # 컨트랙트 코드 재확인
+                contract_code_issue = ""
+                try:
+                    code = self.w3.eth.get_code(contract_address)
+                    if code == b'' or code == '0x':
+                        contract_code_issue = f" CRITICAL: No contract code at {contract_address} - this is NOT a contract!"
+                except Exception:
+                    pass
+                
                 error_msg = (
                     f"Failed to extract token ID. "
                     f"Transaction hash: {receipt.transactionHash.hex()}, "
                     f"Logs: {len(receipt.logs)}, "
                     f"Status: {receipt.status}, "
-                    f"Gas used: {receipt.gasUsed}. "
-                    f"Please check: 1) Contract address is correct, "
-                    f"2) Contract is deployed on Sepolia, "
-                    f"3) Transaction actually minted an NFT. "
+                    f"Gas used: {receipt.gasUsed}.{contract_code_issue} "
+                    f"Possible issues: 1) Contract address is incorrect ({contract_address}), "
+                    f"2) Contract is not deployed on Sepolia, "
+                    f"3) Contract does not emit Transfer events, "
+                    f"4) Transaction did not actually mint an NFT, "
+                    f"5) Contract ABI does not match deployed contract. "
                     f"View transaction: https://sepolia.etherscan.io/tx/{receipt.transactionHash.hex()}"
                 )
                 print(f"❌ {error_msg}")
@@ -440,6 +465,15 @@ class Web3Service:
                 print(f"❌ Failed to create contract instance for: {contract_address}")
                 return None
             
+            # 컨트랙트 코드 확인 (컨트랙트가 실제로 배포되었는지)
+            try:
+                code = self.w3.eth.get_code(contract_address)
+                if code == b'' or code == '0x':
+                    print(f"⚠️  Warning: No contract code found at address {contract_address}")
+                    print(f"   This address might not be a contract or contract is not deployed")
+            except Exception as e:
+                print(f"⚠️  Warning: Could not verify contract code: {e}")
+            
             # 방법 1: Transfer 이벤트에서 토큰 ID 추출
             zero_address = Web3.to_checksum_address('0x0000000000000000000000000000000000000000')
             transfer_event = contract.events.Transfer()
@@ -478,11 +512,14 @@ class Web3Service:
                 # 트랜잭션 입력 데이터에서 민팅 대상 주소 추출 시도
                 mint_to_address = None
                 try:
+                    # tx.input은 HexBytes이거나 문자열일 수 있음
+                    input_hex = tx.input.hex() if hasattr(tx.input, 'hex') else str(tx.input)
+                    
                     # mintRecipe 함수 시그니처: 0x675f0173
-                    if tx.input.startswith('0x675f0173') and len(tx.input) >= 138:
+                    if input_hex.startswith('0x675f0173') and len(input_hex) >= 138:
                         # mintRecipe(address to, string tokenURI)
                         # 함수 시그니처(4 bytes) + to 주소(32 bytes, 패딩 포함)
-                        to_address_hex = tx.input[34:74]  # 0x prefix 제거 후 34-74 (20 bytes = 40 hex chars)
+                        to_address_hex = input_hex[34:74]  # 0x prefix 제거 후 34-74 (20 bytes = 40 hex chars)
                         mint_to_address = Web3.to_checksum_address('0x' + to_address_hex)
                         print(f"   Extracted mint target from input data: {mint_to_address}")
                 except Exception as e:
@@ -541,9 +578,11 @@ class Web3Service:
             if token_id is None:
                 print(f"⚠️  Trying to decode transaction input data...")
                 try:
+                    # tx.input은 HexBytes이거나 문자열일 수 있음
+                    input_hex = tx.input.hex() if hasattr(tx.input, 'hex') else str(tx.input)
+                    
                     # mintRecipe 함수 시그니처: 0x675f0173
-                    # 함수 시그니처 + to (32 bytes) + tokenURI (32 bytes offset) + tokenURI length + tokenURI data
-                    if tx.input.startswith('0x675f0173'):
+                    if input_hex.startswith('0x675f0173'):
                         print(f"   Transaction is mintRecipe call")
                         # to 주소는 input[4:68]에 있음 (32 bytes, 패딩 포함)
                         # 하지만 토큰 ID는 반환값이므로 입력에서 알 수 없음
@@ -563,6 +602,24 @@ class Web3Service:
             if token_id is None:
                 print(f"❌ Could not extract token ID from transaction")
                 print(f"   Transaction: https://sepolia.etherscan.io/tx/{tx_hash}")
+                print(f"   Possible issues:")
+                print(f"   1. Contract address might be incorrect: {contract_address}")
+                print(f"   2. Contract might not be deployed on Sepolia")
+                print(f"   3. Contract might not emit Transfer events")
+                print(f"   4. Transaction might not have actually minted an NFT")
+                print(f"   5. Contract ABI might not match the deployed contract")
+                
+                # 컨트랙트 코드 확인
+                try:
+                    code = self.w3.eth.get_code(contract_address)
+                    if code == b'' or code == '0x':
+                        print(f"   ⚠️  CRITICAL: No contract code found at {contract_address}")
+                        print(f"      This address is NOT a contract!")
+                    else:
+                        print(f"   ✅ Contract code found (length: {len(code)} bytes)")
+                except Exception as e:
+                    print(f"   ⚠️  Could not verify contract code: {e}")
+                
                 return None
             
             return token_id
