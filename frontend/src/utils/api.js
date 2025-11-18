@@ -1,6 +1,27 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const inferApiBaseUrl = () => {
+  // 브라우저 환경에 따라 기본 API 엔드포인트 추론
+  if (typeof window === 'undefined') {
+    return 'http://localhost:8000';
+  }
+
+  const { hostname, origin } = window.location;
+
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'http://localhost:8000';
+  }
+
+  // Firebase Hosting 도메인에서 접근 시 Railway 백엔드로 연결
+  if (hostname.endsWith('web.app') || hostname.endsWith('firebaseapp.com')) {
+    return 'https://recipe-ai-production.up.railway.app';
+  }
+
+  // 기타 환경은 동일한 오리진으로 시도
+  return origin;
+};
+
+const API_BASE_URL = (import.meta.env.VITE_API_URL || inferApiBaseUrl()).replace(/\/$/, '');
 
 const api = axios.create({
   baseURL: API_BASE_URL,

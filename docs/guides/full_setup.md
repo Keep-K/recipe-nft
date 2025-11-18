@@ -82,6 +82,31 @@ GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO recipe_user;
 - **충돌**: `git pull --rebase origin main` 후 해결.
 - **대용량 파일**: `.gitignore` 확인 후 필요 시 Git LFS 사용.
 
+## 4. 프런트엔드(Firebase Hosting) → 백엔드(Railway) 연동
+
+1. **환경 변수**
+   - Vite는 `VITE_*` 접두사의 변수를 사용합니다.
+   - Firebase 배포 전 로컬에서
+     ```bash
+     cd frontend
+     echo "VITE_API_URL=https://recipe-ai-production.up.railway.app/api" > .env.production.local
+     npm run build
+     npx firebase deploy --only hosting
+     ```
+   - 개발 환경은 `VITE_API_URL=http://localhost:8000` 로 두면 됩니다.
+
+2. **자동 추론**
+   - `src/utils/api.js`가 환경 변수가 없을 때
+     - 로컬 → `http://localhost:8000`
+     - Firebase Hosting → `https://recipe-ai-production.up.railway.app`
+     로 자동 연결됩니다.
+   - 추가 프로젝트에서는 도메인 로직을 수정하거나 환경 변수를 명시하세요.
+
+3. **CORS**
+   - Railway FastAPI 서비스의 `ALLOWED_ORIGINS`에 Firebase 호스팅 URL(`https://recipe-nft.web.app` 등)을 포함시켜야 합니다.
+
+위 절차를 거치면 Firebase에서 동작하는 프런트엔드가 Railway 백엔드로 정상적으로 API 요청을 보내고, 별도의 수동 수정 없이 빌드/배포 파이프라인을 유지할 수 있습니다.
+
 ---
 이 문서는 HTTPS 서버 기동, PostgreSQL 운영, GitHub 배포 흐름을 한 곳에 정리한 것입니다. 필요한 명령어와 절차를 그대로 따라 하면 환경 구축부터 배포까지 빠르게 진행할 수 있습니다.
 
