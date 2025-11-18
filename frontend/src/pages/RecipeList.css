@@ -1,0 +1,243 @@
+.recipe-list-container {
+  min-height: 100vh;
+  background: #f5f5f5;
+  padding: 40px 20px;
+}
+
+.recipe-list-header {
+  max-width: 1200px;
+  margin: 0 auto 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.recipe-list-header h1 {
+  margin: 0;
+  color: #333;
+  font-size: 32px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.recipe-grid {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+  .recipe-list-container {
+    padding: 20px 15px;
+  }
+
+  .recipe-list-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 15px;
+    margin-bottom: 20px;
+  }
+
+  .recipe-list-header h1 {
+    font-size: 24px;
+  }
+
+  .header-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .header-actions .btn {
+    width: 100%;
+    text-align: center;
+  }
+
+  .recipe-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+
+  .recipe-card {
+    padding: 15px;
+  }
+
+  .recipe-card-header h3 {
+    font-size: 18px;
+  }
+
+  .recipe-card-actions {
+    flex-direction: column;
+  }
+
+  .btn-link {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+.recipe-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.recipe-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.recipe-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 15px;
+}
+
+.recipe-card-header h3 {
+  margin: 0;
+  color: #333;
+  font-size: 20px;
+  flex: 1;
+}
+
+.badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge.minted {
+  background: #4caf50;
+  color: white;
+}
+
+.recipe-card-body {
+  margin-bottom: 15px;
+}
+
+.recipe-meta {
+  display: flex;
+  gap: 15px;
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.token-id {
+  color: #667eea;
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.recipe-card-actions {
+  display: flex;
+  gap: 10px;
+  padding-top: 15px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.btn-link {
+  flex: 1;
+  text-align: center;
+  padding: 10px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s;
+  background: #f0f0f0;
+  color: #666;
+}
+
+.btn-link:hover {
+  background: #e0e0e0;
+}
+
+.btn-link.primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.btn-link.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.empty-state {
+  max-width: 600px;
+  margin: 100px auto;
+  text-align: center;
+  padding: 60px 40px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.empty-state p {
+  color: #666;
+  font-size: 18px;
+  margin-bottom: 30px;
+}
+
+.btn {
+  padding: 14px 30px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+  transition: all 0.3s;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-secondary {
+  background: #f0f0f0;
+  color: #666;
+}
+
+.btn-secondary:hover {
+  background: #e0e0e0;
+}
+
+.error-message {
+  max-width: 1200px;
+  margin: 0 auto 20px;
+  background: #fee;
+  color: #c33;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  border: 1px solid #fcc;
+}
+
+.loading {
+  text-align: center;
+  padding: 100px 20px;
+  color: #666;
+  font-size: 18px;
+}
+

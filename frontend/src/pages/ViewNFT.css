@@ -1,0 +1,264 @@
+.view-nft-container {
+  min-height: 100vh;
+  background: #f5f5f5;
+  padding: 40px 20px;
+}
+
+.view-nft-card {
+  max-width: 900px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 16px;
+  padding: 40px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.view-nft-card h1 {
+  margin: 0 0 10px 0;
+  color: #333;
+  font-size: 28px;
+}
+
+.subtitle {
+  color: #666;
+  margin-bottom: 30px;
+  font-size: 14px;
+}
+
+.search-section {
+  margin-bottom: 30px;
+}
+
+.search-type-selector {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.type-btn {
+  padding: 10px 20px;
+  border: 2px solid #e0e0e0;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s;
+}
+
+.type-btn:hover {
+  border-color: #667eea;
+}
+
+.type-btn.active {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+}
+
+.search-input-group {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+  .view-nft-container {
+    padding: 20px 15px;
+  }
+
+  .view-nft-card {
+    padding: 20px;
+  }
+
+  .view-nft-card h1 {
+    font-size: 24px;
+  }
+
+  .search-type-selector {
+    flex-direction: column;
+  }
+
+  .type-btn {
+    width: 100%;
+  }
+
+  .search-input-group {
+    flex-direction: column;
+  }
+
+  .search-input-group input {
+    width: 100%;
+  }
+
+  .search-input-group .btn {
+    width: 100%;
+  }
+
+  .nft-info {
+    grid-template-columns: 1fr;
+  }
+
+  .recipe-content {
+    grid-template-columns: 1fr;
+  }
+}
+
+.search-input-group input {
+  flex: 1;
+  padding: 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 16px;
+}
+
+.search-input-group input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.recipe-details {
+  margin-top: 30px;
+}
+
+.recipe-details h2 {
+  color: #333;
+  margin-bottom: 20px;
+  font-size: 24px;
+}
+
+.nft-info {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.info-card {
+  background: #f9f9f9;
+  padding: 20px;
+  border-radius: 12px;
+}
+
+.info-card h3 {
+  margin: 0 0 15px 0;
+  color: #667eea;
+  font-size: 18px;
+}
+
+.info-card p {
+  margin: 8px 0;
+  color: #555;
+  font-size: 14px;
+  word-break: break-all;
+}
+
+.info-card a {
+  color: #667eea;
+  text-decoration: none;
+}
+
+.info-card a:hover {
+  text-decoration: underline;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 12px;
+  margin-top: 10px;
+}
+
+.status-badge.minted {
+  background: #4caf50;
+  color: white;
+}
+
+.metadata-content {
+  margin-top: 15px;
+}
+
+.metadata-content h4 {
+  margin: 0 0 10px 0;
+  color: #333;
+  font-size: 16px;
+}
+
+.metadata-content ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.metadata-content li {
+  margin-bottom: 5px;
+  color: #555;
+}
+
+.recipe-content {
+  display: grid;
+  gap: 20px;
+  margin-top: 30px;
+}
+
+.content-section {
+  background: #f9f9f9;
+  padding: 20px;
+  border-radius: 12px;
+}
+
+.content-section h3 {
+  margin: 0 0 15px 0;
+  color: #667eea;
+  font-size: 18px;
+}
+
+.content-section ul,
+.content-section ol {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.content-section li {
+  margin-bottom: 8px;
+  color: #555;
+  line-height: 1.6;
+}
+
+.btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error-message {
+  background: #fee;
+  color: #c33;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  border: 1px solid #fcc;
+}
+
