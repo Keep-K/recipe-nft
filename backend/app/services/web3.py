@@ -122,6 +122,23 @@ class Web3Service:
             mint_function = contract.functions.mintRecipe(to_address, token_uri)
             print(f"📤 Building transaction...")
             
+            # 트랜잭션 전에 call로 반환값 확인 (토큰 ID 미리 얻기)
+            expected_token_id = None
+            try:
+                print(f"   Pre-calling mintRecipe to get expected token ID...")
+                expected_token_id = mint_function.call({'from': account.address})
+                print(f"   Expected token ID from call: {expected_token_id}")
+            except Exception as e:
+                print(f"   Could not pre-call mintRecipe (this is normal): {e}")
+            
+            # 트랜잭션 전에 balanceOf 확인 (최신 토큰 ID 찾기용)
+            balance_before = 0
+            try:
+                balance_before = contract.functions.balanceOf(to_address).call()
+                print(f"   Balance before mint: {balance_before}")
+            except Exception as e:
+                print(f"   Could not get balance before mint: {e}")
+            
             # 트랜잭션 빌드
             nonce = self.w3.eth.get_transaction_count(account.address)
             gas_price = self.w3.eth.gas_price
@@ -207,50 +224,98 @@ class Web3Service:
             if token_id is None:
                 print(f"⚠️  Token ID not found in Transfer events (logs: {len(receipt.logs)}). Trying alternative methods...")
                 
-                # 방법 1: totalSupply를 사용하여 최신 토큰 ID 추출
+                # 방법 0: 예상 토큰 ID 사용 (call로 미리 얻은 값)
+                if expected_token_id is not None:
+                    try:
+                        # 예상 토큰 ID가 실제로 해당 주소에 속하는지 확인
+                        owner = contract.functions.ownerOf(expected_token_id).call()
+                        if owner.lower() == to_address.lower():
+                            token_id = expected_token_id
+                            print(f"✅ Using pre-call token ID: {token_id}")
+                    except Exception as e:
+                        print(f"   Pre-call token ID verification failed: {e}")
+                
+                # 방법 1: balanceOf를 사용하여 최신 토큰 ID 찾기
                 try:
-                    print(f"   Method 1: Checking totalSupply...")
+                    print(f"   Method 1: Using balanceOf to find latest token...")
                     # 블록이 확정될 때까지 잠시 대기
                     import time
                     time.sleep(2)  # 2초 대기
                     
-                    total_supply = contract.functions.totalSupply().call()
-                    print(f"      Total supply: {total_supply}")
+                    balance_after = contract.functions.balanceOf(to_address).call()
+                    print(f"      Balance before: {balance_before}, Balance after: {balance_after}")
                     
-                    if total_supply > 0:
-                        # 마지막 토큰 ID는 totalSupply - 1 (0-based indexing)
-                        token_id = total_supply - 1
-                        print(f"✅ Using totalSupply method: Token ID = {token_id}")
+                    if balance_after > balance_before:
+                        # balance가 증가했다면, 새로 민팅된 토큰을 찾아야 함
+                        print(f"      Balance increased! Searching for new token...")
                         
-                        # 검증: 해당 토큰이 실제로 to_address에 속하는지 확인
-                        try:
-                            owner = contract.functions.ownerOf(token_id).call()
-                            if owner.lower() == to_address.lower():
-                                print(f"✅ Verified: Token {token_id} belongs to {to_address}")
+                        # 효율적인 검색: 작은 범위부터 시작
+                        # 일반적으로 토큰 ID는 순차적으로 증가하므로, 0부터 시작
+                        max_search = 1000  # 최대 1000개까지 검색
+                        found_tokens = []
+                        
+                        # 순차적으로 검색하여 to_address가 소유한 모든 토큰 찾기
+                        for check_id in range(max_search):
+                            try:
+                                owner = contract.functions.ownerOf(check_id).call()
+                                if owner.lower() == to_address.lower():
+                                    found_tokens.append(check_id)
+                                    print(f"      Found token {check_id} owned by {to_address}")
+                                    # balance_after만큼 찾았으면 중단
+                                    if len(found_tokens) >= balance_after:
+                                        break
+                            except Exception:
+                                # 토큰이 존재하지 않으면 계속
+                                continue
+                        
+                        if found_tokens:
+                            # balance_before 이후의 토큰만 필터링 (새로 민팅된 것)
+                            new_tokens = found_tokens[balance_before:]
+                            if new_tokens:
+                                # 가장 큰 토큰 ID가 최신일 가능성이 높음
+                                token_id = max(new_tokens)
+                                print(f"✅ Using balanceOf method: New Token ID = {token_id}")
                             else:
-                                print(f"⚠️  Warning: Token {token_id} owner is {owner}, expected {to_address}")
-                        except Exception as e:
-                            print(f"⚠️  Could not verify token ownership: {e}")
+                                # 모든 토큰이 새 것일 수도 있음
+                                token_id = max(found_tokens)
+                                print(f"✅ Using balanceOf method (fallback): Latest Token ID = {token_id}")
+                        else:
+                            print(f"      Could not find any tokens owned by {to_address}")
+                    elif balance_after > 0:
+                        # balance가 증가하지 않았지만 0보다 크면, 기존 토큰 중 최신 것 사용
+                        print(f"      Balance did not increase, but balance > 0. Searching...")
+                        # 위와 동일한 검색 로직
+                        for check_id in range(1000):
+                            try:
+                                owner = contract.functions.ownerOf(check_id).call()
+                                if owner.lower() == to_address.lower():
+                                    found_tokens.append(check_id)
+                                    if len(found_tokens) >= balance_after:
+                                        break
+                            except Exception:
+                                continue
+                        
+                        if found_tokens:
+                            token_id = max(found_tokens)
+                            print(f"✅ Using balanceOf fallback: Latest Token ID = {token_id}")
                     else:
-                        print(f"      Total supply is 0, cannot determine token ID")
+                        print(f"      Balance is 0, cannot determine token ID")
                 except Exception as e:
-                    print(f"   totalSupply method failed: {e}")
+                    print(f"   balanceOf method failed: {e}")
                     import traceback
                     traceback.print_exc()
                 
-                # 방법 2: balanceOf를 사용하여 확인
+                # 방법 2: 트랜잭션 반환값 디코딩 시도 (일반적으로 불가능하지만 시도)
                 if token_id is None:
                     try:
-                        print(f"   Method 2: Checking balanceOf...")
-                        balance = contract.functions.balanceOf(to_address).call()
-                        print(f"      Balance of {to_address}: {balance}")
-                        
-                        if balance > 0:
-                            # balanceOf가 증가했다면, 최신 토큰을 찾기 위해 ownerOf를 역순으로 확인
-                            # 하지만 이 방법은 비효율적이므로 totalSupply 방법이 더 나음
-                            pass
+                        print(f"   Method 2: Attempting to decode transaction return value...")
+                        # 트랜잭션 반환값은 receipt에 없으므로, 트랜잭션을 다시 call로 실행
+                        # 하지만 이미 실행된 트랜잭션이므로 이 방법은 작동하지 않음
+                        # 대신 트랜잭션 데이터를 디코딩하여 확인
+                        tx = self.w3.eth.get_transaction(tx_hash)
+                        print(f"      Transaction data length: {len(tx.input)}")
                     except Exception as e:
-                        print(f"   balanceOf method failed: {e}")
+                        print(f"   Transaction decoding failed: {e}")
                 
                 # 방법 3: 모든 로그를 자세히 출력
                 if token_id is None and receipt.logs:
