@@ -14,7 +14,7 @@ const inferApiBaseUrl = () => {
 
   // Firebase Hosting 도메인에서 접근 시 Railway 백엔드로 연결
   if (hostname.endsWith('web.app') || hostname.endsWith('firebaseapp.com')) {
-    return 'https://recipe-ai-production.up.railway.app';
+    return 'https://recipe-nft-production.up.railway.app';
   }
 
   // 기타 환경은 동일한 오리진으로 시도
