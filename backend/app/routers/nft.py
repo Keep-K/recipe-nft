@@ -299,6 +299,47 @@ async def get_recipe_by_transaction(
     
     return recipe
 
+@router.get("/debug/contract-address")
+async def get_contract_address_from_tx(
+    tx_hash: str = Query(..., description="트랜잭션 해시"),
+    db: Session = Depends(get_db)
+):
+    """
+    트랜잭션 해시에서 컨트랙트 주소 추출
+    
+    Railway 환경 변수 NFT_CONTRACT_ADDRESS를 업데이트할 때 사용합니다.
+    """
+    if not web3_service.is_connected():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Web3 not connected. Provider: {settings.WEB3_PROVIDER_URL}"
+        )
+    
+    contract_address = web3_service.get_contract_address_from_transaction(tx_hash)
+    
+    if not contract_address:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Could not extract contract address from transaction: {tx_hash}"
+        )
+    
+    # 컨트랙트 코드 확인
+    try:
+        from web3 import Web3
+        w3 = Web3(Web3.HTTPProvider(settings.WEB3_PROVIDER_URL))
+        code = w3.eth.get_code(contract_address)
+        is_contract = code != b'' and code != '0x'
+    except Exception as e:
+        is_contract = None
+    
+    return {
+        "transaction_hash": tx_hash,
+        "contract_address": contract_address,
+        "is_contract": is_contract,
+        "message": "Railway 환경 변수 NFT_CONTRACT_ADDRESS를 이 주소로 업데이트하세요.",
+        "railway_env_var": f"NFT_CONTRACT_ADDRESS={contract_address}"
+    }
+
 @router.get("/debug/tx/{tx_hash}")
 async def debug_transaction(
     tx_hash: str,
