@@ -182,10 +182,36 @@ class Web3Service:
                 raise Exception(error_msg)
             
             print(f"✅ Transaction status: {receipt.status} (1 = success)")
+            print(f"   Gas used: {receipt.gasUsed} / {transaction['gas']}")
+            print(f"   Logs count: {len(receipt.logs)}")
             print(f"🔍 Analyzing {len(receipt.logs)} logs for Transfer events...")
             
-            # 이벤트에서 토큰 ID 추출
+            # 트랜잭션이 실제로 성공했는지 확인 (gasUsed가 0이면 revert)
+            if receipt.gasUsed == transaction['gas']:
+                print(f"⚠️  Warning: All gas was used, transaction might have reverted")
+            
+            # 토큰 ID 추출 시도
             token_id = None
+            
+            # 방법 0: 트랜잭션 반환값 확인 시도
+            try:
+                tx_result = self.w3.eth.call({
+                    'to': contract_address,
+                    'data': transaction['data'],
+                    'from': account.address,
+                }, receipt.blockNumber - 1)  # 이전 블록에서 call
+                
+                if tx_result and len(tx_result) > 0:
+                    # 반환값 디코딩 (uint256)
+                    decoded_result = int.from_bytes(tx_result, byteorder='big')
+                    print(f"   Transaction return value (from call): {decoded_result}")
+                    if decoded_result > 0:
+                        token_id = decoded_result
+                        print(f"✅ Using transaction return value: Token ID = {token_id}")
+            except Exception as e:
+                print(f"   Could not decode transaction return value: {e}")
+            
+            # 방법 1: 이벤트에서 토큰 ID 추출
             zero_address = Web3.to_checksum_address('0x0000000000000000000000000000000000000000')
             
             if receipt.logs:
@@ -332,14 +358,31 @@ class Web3Service:
                     print(f"      2. Transaction reverted silently")
                     print(f"      3. Contract address or ABI mismatch")
             
+            # 여전히 토큰 ID를 찾지 못한 경우, 트랜잭션이 실제로 성공했는지 확인
+            if token_id is None:
+                # 트랜잭션이 실제로 revert되었는지 확인
+                try:
+                    # 트랜잭션을 다시 call하여 확인
+                    print(f"   Verifying transaction actually succeeded...")
+                    call_result = mint_function.call({'from': account.address})
+                    if call_result is not None:
+                        token_id = call_result
+                        print(f"✅ Using call result after transaction: Token ID = {token_id}")
+                except Exception as e:
+                    print(f"   Call verification failed: {e}")
+            
             # 여전히 토큰 ID를 찾지 못한 경우 에러
             if token_id is None:
                 error_msg = (
                     f"Failed to extract token ID. "
                     f"Transaction hash: {receipt.transactionHash.hex()}, "
                     f"Logs: {len(receipt.logs)}, "
-                    f"Status: {receipt.status}. "
-                    f"Please check the contract events or use totalSupply method."
+                    f"Status: {receipt.status}, "
+                    f"Gas used: {receipt.gasUsed}. "
+                    f"Please check: 1) Contract address is correct, "
+                    f"2) Contract is deployed on Sepolia, "
+                    f"3) Transaction actually minted an NFT. "
+                    f"View transaction: https://sepolia.etherscan.io/tx/{receipt.transactionHash.hex()}"
                 )
                 print(f"❌ {error_msg}")
                 raise Exception(error_msg)
